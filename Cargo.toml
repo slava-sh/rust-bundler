@@ -1,0 +1,8 @@
+[package]
+name = "expand-mods"
+version = "0.1.0"
+authors = ["Slava Shklyaev <slava@slava.sh>"]
+
+[dependencies]
+syn = { version = "0.13.1", features = ["full", "extra-traits", "visit-mut"] }
+quote = "0.5.1"
