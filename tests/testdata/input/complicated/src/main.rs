@@ -1,5 +1,9 @@
 extern crate my_lib;
 
+use my_lib::{a, b};
+
 fn main() {
-    my_lib::hello_world();
+    a::a();
+    ::b::b();
+    ::my_lib::c::d::d();
 }

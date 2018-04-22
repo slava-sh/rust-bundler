@@ -1,9 +1,23 @@
-mod internal {
-    pub fn hello_world() {
-        println!("Hello, world!");
+pub mod a {
+    pub fn a() {
+        println!("a::a()");
     }
 }
-pub use internal::hello_world;
+pub mod b {
+    use a;
+    pub fn b() {
+        a::a();
+    }
+}
+pub mod c {
+    pub mod d {
+        pub fn d() {
+            println!("c::d::d()");
+        }
+    }
+}
 fn main() {
-    hello_world();
+    a::a();
+    ::b::b();
+    ::c::d::d();
 }

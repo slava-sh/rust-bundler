@@ -52,9 +52,14 @@ struct Expander<'a> {
 }
 
 impl<'a> Expander<'a> {
-    fn expand_extern_crate(&self, file: &mut syn::File) {
+    fn expand_items(&self, items: &mut Vec<syn::Item>) {
+        self.expand_extern_crate(items);
+        self.expand_use_path(items);
+    }
+
+    fn expand_extern_crate(&self, items: &mut Vec<syn::Item>) {
         let mut new_items = vec![];
-        for item in file.items.drain(..) {
+        for item in items.drain(..) {
             if is_extern_crate(&item, self.crate_name) {
                 eprintln!(
                     "expanding crate {} in {}",
@@ -69,7 +74,17 @@ impl<'a> Expander<'a> {
                 new_items.push(item);
             }
         }
-        file.items = new_items;
+        *items = new_items;
+    }
+
+    fn expand_use_path(&self, items: &mut Vec<syn::Item>) {
+        let mut new_items = vec![];
+        for item in items.drain(..) {
+            if !is_use_path(&item, self.crate_name) {
+                new_items.push(item);
+            }
+        }
+        *items = new_items;
     }
 
     fn expand_mods(&self, item: &mut syn::ItemMod) {
@@ -96,8 +111,8 @@ impl<'a> Expander<'a> {
         item.content = Some((Default::default(), file.items));
     }
 
-    fn remove_crate_path(&mut self, path: &mut syn::Path) {
-        if starts_with(path, self.crate_name) {
+    fn expand_crate_path(&mut self, path: &mut syn::Path) {
+        if path_starts_with(path, self.crate_name) {
             let new_segments = mem::replace(&mut path.segments, Punctuated::new())
                 .into_pairs()
                 .skip(1)
@@ -112,7 +127,7 @@ impl<'a> VisitMut for Expander<'a> {
         for it in &mut file.attrs {
             self.visit_attribute_mut(it)
         }
-        self.expand_extern_crate(file);
+        self.expand_items(&mut file.items);
         for it in &mut file.items {
             self.visit_item_mut(it)
         }
@@ -133,7 +148,7 @@ impl<'a> VisitMut for Expander<'a> {
     }
 
     fn visit_path_mut(&mut self, path: &mut syn::Path) {
-        self.remove_crate_path(path);
+        self.expand_crate_path(path);
         for mut el in Punctuated::pairs_mut(&mut path.segments) {
             let it = el.value_mut();
             self.visit_path_segment_mut(it)
@@ -150,10 +165,21 @@ fn is_extern_crate(item: &syn::Item, crate_name: &str) -> bool {
     false
 }
 
-fn starts_with(path: &syn::Path, segment: &str) -> bool {
+fn path_starts_with(path: &syn::Path, segment: &str) -> bool {
     if let Some(el) = path.segments.first() {
         if el.value().ident.to_string() == segment {
             return true;
+        }
+    }
+    false
+}
+
+fn is_use_path(item: &syn::Item, first_segment: &str) -> bool {
+    if let syn::Item::Use(ref item) = *item {
+        if let syn::UseTree::Path(ref path) = item.tree {
+            if path.ident.to_string() == first_segment {
+                return true;
+            }
         }
     }
     false

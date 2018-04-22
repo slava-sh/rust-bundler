@@ -1,3 +1,3 @@
-mod internal;
-
-pub use internal::hello_world;
+pub mod a;
+pub mod b;
+pub mod c;
