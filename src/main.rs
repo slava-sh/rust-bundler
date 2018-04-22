@@ -1,7 +1,6 @@
 extern crate bundler;
 
 use std::env;
-use std::path::Path;
 use std::process;
 
 fn main() {
@@ -10,7 +9,6 @@ fn main() {
         eprintln!("Usage: bundle path/to/project");
         process::exit(1);
     }
-    let project = Path::new(&args[1]);
-    let code = bundler::bundle(project);
+    let code = bundler::bundle(&args[1]);
     println!("{}", code);
 }
