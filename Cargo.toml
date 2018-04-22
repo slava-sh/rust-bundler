@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 quote = "0.5.1"
+rustfmt = "0.10.0"
 syn = { version = "0.13.1", features = ["full"] }
 toml = "0.4.6"
 

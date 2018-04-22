@@ -20,7 +20,7 @@ fn golden() {
         let mut output_file = mint.new_goldenfile(output_name).expect(
             "new_goldenfile failed",
         );
-        let output = bundler::run(&input_path);
+        let output = bundler::bundle(&input_path);
         write!(output_file, "{}", output).expect("write! failed");
     }
 }

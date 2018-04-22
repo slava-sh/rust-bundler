@@ -1,15 +1,16 @@
 extern crate quote;
+extern crate rustfmt;
 extern crate syn;
 extern crate toml;
 
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Sink};
 use std::mem;
 use std::path::Path;
 
 use quote::ToTokens;
 
-pub fn run(project: &Path) -> String {
+pub fn bundle(project: &Path) -> String {
     let cargo_toml = read_file(&project.join("Cargo.toml")).expect("failed to read Cargo.toml");
     let cargo_toml: toml::Value = toml::from_str(&cargo_toml).expect("failed to parse Cargo.toml");
     let package_name = cargo_toml
@@ -22,11 +23,12 @@ pub fn run(project: &Path) -> String {
     let src = project.join("src");
     let code = read_file(&src.join("main.rs")).expect("failed to read main.rs");
     let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
-    bundle(&mut file, package_name, &src);
-    file.into_tokens().to_string()
+    expand(&mut file, package_name, &src);
+    let code = file.into_tokens().to_string();
+    prettify(code)
 }
 
-fn bundle(file: &mut syn::File, package_name: &str, base_path: &Path) {
+fn expand(file: &mut syn::File, package_name: &str, base_path: &Path) {
     expand_crate(file, base_path, package_name);
     expand_mods(file, base_path);
 }
@@ -108,4 +110,13 @@ fn read_file(path: &Path) -> Option<String> {
     let mut buf = String::new();
     File::open(path).ok()?.read_to_string(&mut buf).ok()?;
     Some(buf)
+}
+
+fn prettify(code: String) -> String {
+    let config = Default::default();
+    let out: Option<&mut Sink> = None;
+    let result = rustfmt::format_input(rustfmt::Input::Text(code), &config, out)
+        .expect("rustfmt failed");
+    let ref buf = result.1.first().expect("rustfmt returned no code").1;
+    format!("{}", buf)
 }

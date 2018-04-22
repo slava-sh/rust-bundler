@@ -11,6 +11,6 @@ fn main() {
         process::exit(1);
     }
     let project = Path::new(&args[1]);
-    let code = bundler::run(project);
+    let code = bundler::bundle(project);
     println!("{}", code);
 }
