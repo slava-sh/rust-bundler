@@ -1,0 +1,9 @@
+[package]
+name = "complicated"
+version = "0.1.0"
+authors = ["Slava Shklyaev <slava@slava.sh>"]
+
+[lib]
+name = "my_lib"
+
+[dependencies]

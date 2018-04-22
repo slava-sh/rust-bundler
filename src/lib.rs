@@ -14,23 +14,36 @@ use syn::punctuated::Punctuated;
 
 pub fn bundle(project: &Path) -> String {
     let cargo_toml = read_file(&project.join("Cargo.toml")).expect("failed to read Cargo.toml");
-    let cargo_toml: toml::Value = toml::from_str(&cargo_toml).expect("failed to parse Cargo.toml");
-    let package_name = cargo_toml
-        .get("package")
-        .expect("Cargo.toml has no package")
-        .get("name")
-        .expect("Cargo.toml has no package.name")
-        .as_str()
-        .expect("failed to read package name");
+    let cargo_toml = toml::from_str(&cargo_toml).expect("failed to parse Cargo.toml");
+    let crate_name = get_crate_name(cargo_toml).expect("cannot determine crate name");
     let src = project.join("src");
     let code = read_file(&src.join("main.rs")).expect("failed to read main.rs");
     let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
     Expander {
         base_path: &src,
-        crate_name: package_name,
+        crate_name: &crate_name,
     }.visit_file_mut(&mut file);
     let code = file.into_tokens().to_string();
     prettify(code)
+}
+
+fn get_crate_name(cargo_toml: toml::Value) -> Option<String> {
+    cargo_toml
+        .get("lib")
+        .and_then(|lib| lib.get("name"))
+        .map(|name| {
+            name.as_str().expect("lib name is not a string").to_owned()
+        })
+        .or_else(|| {
+            cargo_toml
+                .get("package")
+                .and_then(|package| {
+                    package.get("name").map(|name| {
+                        name.as_str().expect("package name is not a string")
+                    })
+                })
+                .map(|name| name.replace("-", "_"))
+        })
 }
 
 struct Expander<'a> {
