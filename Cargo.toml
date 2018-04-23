@@ -1,6 +1,6 @@
 [package]
 name = "bundler"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Slava Shklyaev <slava@slava.sh>"]
 description = "Creates a single-source-file version of a Cargo package."
 documentation = "https://docs.rs/bundler"
