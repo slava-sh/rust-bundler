@@ -6,6 +6,8 @@ description = "Creates a single-source-file version of a Cargo package."
 documentation = "https://docs.rs/bundler"
 homepage = "https://github.com/slava-sh/rust-bundler"
 repository = "https://github.com/slava-sh/rust-bundler"
+keywords = ["single-file", "bundle", "merge", "expand", "cli"]
+categories = ["command-line-utilities"]
 readme = "README.md"
 license = "MIT"
 
