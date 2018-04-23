@@ -62,7 +62,7 @@ $ bundle path/to/project >output.rs
 
 ```toml
 [dependencies]
-bundler = "0.1.1"
+bundler = "0.1"
 ```
 
 ```rust

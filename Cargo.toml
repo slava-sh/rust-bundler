@@ -20,10 +20,11 @@ name = "bundle"
 path = "src/main.rs"
 
 [dependencies]
-quote = "0.5.1"
-rustfmt = "0.10.0"
-syn = { version = "0.13.1", features = ["full", "extra-traits", "visit-mut"] }
-toml = "0.4.6"
+quote = "0.5"
+rustfmt = "0.10"
+syn = { version = "0.13", features = ["full", "extra-traits", "visit-mut"] }
+toml = "0.4"
 
 [dev-dependencies]
-goldenfile = "0.5.1"
+goldenfile = "0.5"
+assert_cli = "0.5"
