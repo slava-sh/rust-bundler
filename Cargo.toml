@@ -11,7 +11,6 @@ license = "MIT"
 [badges]
 travis-ci = { repository = "slava-sh/rust-bundler" }
 codecov = { repository = "slava-sh/rust-bundler" }
-coveralls = { repository = "slava-sh/rust-bundler" }
 
 [[bin]]
 name = "bundle"

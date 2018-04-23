@@ -1,4 +1,4 @@
-# rust-bundler
+# rust-bundler [![Build Status](https://travis-ci.org/slava-sh/rust-bundler.svg?branch=master)](https://travis-ci.org/slava-sh/rust-bundler) [![Coverage Report](https://codecov.io/gh/slava-sh/rust-bundler/branch/master/graph/badge.svg)](https://codecov.io/gh/slava-sh/rust-bundler) [![Crates.io](https://img.shields.io/crates/v/bundler.svg)](https://crates.io/crates/bundler)
 
 Bundler creates a single-source-file version of a Cargo package.
 
