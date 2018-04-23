@@ -19,7 +19,7 @@ pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
     let cargo_toml =
         read_file(&package_path.join("Cargo.toml")).expect("failed to read Cargo.toml");
     let cargo_toml = toml::from_str(&cargo_toml).expect("failed to parse Cargo.toml");
-    let crate_name = get_crate_name(cargo_toml).expect("cannot determine crate name");
+    let crate_name = get_crate_name(&cargo_toml).expect("cannot determine crate name");
     let src = package_path.join("src");
     let code = read_file(&src.join("main.rs")).expect("failed to read main.rs");
     let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
@@ -31,7 +31,7 @@ pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
     prettify(code)
 }
 
-fn get_crate_name(cargo_toml: toml::Value) -> Option<String> {
+fn get_crate_name(cargo_toml: &toml::Value) -> Option<String> {
     cargo_toml
         .get("lib")
         .and_then(|lib| lib.get("name"))
@@ -162,7 +162,7 @@ impl<'a> VisitMut for Expander<'a> {
 
 fn is_extern_crate(item: &syn::Item, crate_name: &str) -> bool {
     if let syn::Item::ExternCrate(ref item) = *item {
-        if item.ident.to_string() == crate_name {
+        if item.ident == crate_name {
             return true;
         }
     }
@@ -171,7 +171,7 @@ fn is_extern_crate(item: &syn::Item, crate_name: &str) -> bool {
 
 fn path_starts_with(path: &syn::Path, segment: &str) -> bool {
     if let Some(el) = path.segments.first() {
-        if el.value().ident.to_string() == segment {
+        if el.value().ident == segment {
             return true;
         }
     }
@@ -181,7 +181,7 @@ fn path_starts_with(path: &syn::Path, segment: &str) -> bool {
 fn is_use_path(item: &syn::Item, first_segment: &str) -> bool {
     if let syn::Item::Use(ref item) = *item {
         if let syn::UseTree::Path(ref path) = item.tree {
-            if path.ident.to_string() == first_segment {
+            if path.ident == first_segment {
                 return true;
             }
         }
@@ -200,6 +200,6 @@ fn prettify(code: String) -> String {
     let out: Option<&mut Sink> = None;
     let result = rustfmt::format_input(rustfmt::Input::Text(code), &config, out)
         .expect("rustfmt failed");
-    let ref buf = result.1.first().expect("rustfmt returned no code").1;
-    format!("{}", buf)
+    let code = &result.1.first().expect("rustfmt returned no code").1;
+    format!("{}", code)
 }
