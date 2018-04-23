@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Slava Shklyaev <slava@slava.sh>"]
 description = "Creates a single-source-file version of a Cargo package."
 documentation = "https://docs.rs/bundler"
+homepage = "https://github.com/slava-sh/rust-bundler"
 repository = "https://github.com/slava-sh/rust-bundler"
 readme = "README.md"
 license = "MIT"
