@@ -1,3 +1,4 @@
+//! See [README.md](https://github.com/slava-sh/rust-bundler/blob/master/README.md)
 extern crate quote;
 extern crate rustfmt;
 extern crate syn;
@@ -12,13 +13,14 @@ use quote::ToTokens;
 use syn::visit_mut::VisitMut;
 use syn::punctuated::Punctuated;
 
-pub fn bundle<P: AsRef<Path>>(project_path: P) -> String {
-    let project_path = project_path.as_ref();
+/// Creates a single-source-file version of a Cargo package.
+pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
+    let package_path = package_path.as_ref();
     let cargo_toml =
-        read_file(&project_path.join("Cargo.toml")).expect("failed to read Cargo.toml");
+        read_file(&package_path.join("Cargo.toml")).expect("failed to read Cargo.toml");
     let cargo_toml = toml::from_str(&cargo_toml).expect("failed to parse Cargo.toml");
     let crate_name = get_crate_name(cargo_toml).expect("cannot determine crate name");
-    let src = project_path.join("src");
+    let src = package_path.join("src");
     let code = read_file(&src.join("main.rs")).expect("failed to read main.rs");
     let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
     Expander {
