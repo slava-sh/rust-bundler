@@ -1,6 +1,9 @@
 //! See [README.md](https://github.com/slava-sh/rust-bundler/blob/master/README.md)
 extern crate quote;
 extern crate rustfmt;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate syn;
 extern crate toml;
 
@@ -16,10 +19,7 @@ use syn::punctuated::Punctuated;
 /// Creates a single-source-file version of a Cargo package.
 pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
     let package_path = package_path.as_ref();
-    let cargo_toml =
-        read_file(&package_path.join("Cargo.toml")).expect("failed to read Cargo.toml");
-    let cargo_toml = toml::from_str(&cargo_toml).expect("failed to parse Cargo.toml");
-    let crate_name = get_crate_name(&cargo_toml).expect("cannot determine crate name");
+    let crate_name = get_crate_name(&package_path.join("Cargo.toml"));
     let src = package_path.join("src");
     let code = read_file(&src.join("main.rs")).expect("failed to read main.rs");
     let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
@@ -31,23 +31,25 @@ pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
     prettify(code)
 }
 
-fn get_crate_name(cargo_toml: &toml::Value) -> Option<String> {
-    cargo_toml
-        .get("lib")
-        .and_then(|lib| lib.get("name"))
-        .map(|name| {
-            name.as_str().expect("lib name is not a string").to_owned()
-        })
-        .or_else(|| {
-            cargo_toml
-                .get("package")
-                .and_then(|package| {
-                    package.get("name").map(|name| {
-                        name.as_str().expect("package name is not a string")
-                    })
-                })
-                .map(|name| name.replace("-", "_"))
-        })
+fn get_crate_name(cargo_toml: &Path) -> String {
+    let manifest = read_file(&cargo_toml).expect("failed to read Cargo.toml");
+    let manifest: Manifest = toml::from_str(&manifest).expect("failed to parse Cargo.toml");
+    if let Some(lib) = manifest.lib {
+        lib.name
+    } else {
+        manifest.package.name.replace("-", "_")
+    }
+}
+
+#[derive(Deserialize)]
+struct Manifest {
+    package: WithName,
+    lib: Option<WithName>,
+}
+
+#[derive(Deserialize)]
+struct WithName {
+    name: String,
 }
 
 struct Expander<'a> {
