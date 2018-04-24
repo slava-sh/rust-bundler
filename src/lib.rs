@@ -22,17 +22,10 @@ use syn::visit_mut::VisitMut;
 
 /// Creates a single-source-file version of a Cargo package.
 pub fn bundle<P: AsRef<Path>>(package_path: P) -> Result<String, Error> {
-    let shell = Shell::new();
-    let cwd = fs::canonicalize(package_path)?;
-    let home = util::homedir(&cwd).ok_or_else(|| {
-        format_err!("failed to determine home directory")
-    })?;
-    let config = Config::new(shell, cwd, home);
-
+    let config = get_config(package_path)?;
     let manifest = util::important_paths::find_root_manifest_for_wd(None, config.cwd())?;
     let ws = Workspace::new(&manifest, &config)?;
-    let package = ws.current()?;
-    let targets = package.targets();
+    let targets = ws.current()?.targets();
     let bins: Vec<_> = targets.iter().filter(|t| t.is_bin()).collect();
     ensure!(bins.len() != 0, format_err!("no binary target"));
     ensure!(
@@ -46,17 +39,22 @@ pub fn bundle<P: AsRef<Path>>(package_path: P) -> Result<String, Error> {
         format_err!("multiple library targets not supported")
     );
     let lib = libs.get(0).unwrap_or(&bin);
-    let crate_name = lib.crate_name();
-    let src = lib.src_path().parent().ok_or_else(|| format_err!("parent"))?;
-
-    let code = read_file(bin.src_path()).expect("failed to read main.rs");
-    let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
+    let mut file = syn::parse_file(&read_file(bin.src_path())?)?;
     Expander {
-        base_path: &src,
-        crate_name: &crate_name,
+        base_path: &lib.src_path().parent().expect("src_path().parent() failed"),
+        crate_name: &lib.crate_name(),
     }.visit_file_mut(&mut file);
     let code = file.into_tokens().to_string();
     prettify(code)
+}
+
+fn get_config<P: AsRef<Path>>(cwd: P) -> Result<Config, Error> {
+    let shell = Shell::new();
+    let cwd = fs::canonicalize(cwd)?;
+    let home = util::homedir(&cwd).ok_or_else(|| {
+        format_err!("failed to determine home directory")
+    })?;
+    Ok(Config::new(shell, cwd, home))
 }
 
 struct Expander<'a> {
@@ -116,7 +114,7 @@ impl<'a> Expander<'a> {
             .next()
             .expect("mod not found");
         info!("expanding mod {} in {}", name, base_path.to_str().unwrap());
-        let mut file = syn::parse_file(&code).expect("failed to parse file");
+        let mut file = syn::parse_file(&code).expect("failed to parse source file");
         Expander {
             base_path,
             crate_name: self.crate_name,
@@ -198,10 +196,10 @@ fn is_use_path(item: &syn::Item, first_segment: &str) -> bool {
     false
 }
 
-fn read_file(path: &Path) -> Option<String> {
+fn read_file(path: &Path) -> Result<String, Error> {
     let mut buf = String::new();
-    File::open(path).ok()?.read_to_string(&mut buf).ok()?;
-    Some(buf)
+    File::open(path)?.read_to_string(&mut buf)?;
+    Ok(buf)
 }
 
 fn prettify(code: String) -> Result<String, Error> {
@@ -209,6 +207,10 @@ fn prettify(code: String) -> Result<String, Error> {
     let out: Option<&mut Sink> = None;
     let result = rustfmt::format_input(rustfmt::Input::Text(code), &config, out)
         .map_err(|(err, _)| err)?;
-    let code = &result.1.first().ok_or_else(|| format_err!("rustfmt"))?.1;
+    ensure!(
+        result.1.len() == 1,
+        format_err!("unexpected rustfmt result")
+    );
+    let code = &result.1[0].1;
     Ok(format!("{}", code))
 }
