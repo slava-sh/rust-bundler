@@ -19,7 +19,7 @@ fn main() {
         let mut output_file = mint.new_goldenfile(output_name).expect(
             "new_goldenfile failed",
         );
-        let output = bundler::bundle(&input_path);
+        let output = bundler::bundle(&input_path).expect("bundle failed");
         write!(output_file, "{}", output).expect("write! failed");
     }
 }

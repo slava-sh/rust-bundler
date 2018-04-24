@@ -1,27 +1,55 @@
 //! See [README.md](https://github.com/slava-sh/rust-bundler/blob/master/README.md)
+extern crate cargo;
+#[macro_use]
+extern crate failure;
+#[macro_use]
+extern crate log;
 extern crate quote;
 extern crate rustfmt;
 extern crate syn;
-extern crate toml;
 
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{Read, Sink};
 use std::mem;
 use std::path::Path;
 
+use cargo::core::{Workspace, Shell};
+use cargo::util::{self, Config};
+use failure::Error;
 use quote::ToTokens;
-use syn::visit_mut::VisitMut;
 use syn::punctuated::Punctuated;
+use syn::visit_mut::VisitMut;
 
 /// Creates a single-source-file version of a Cargo package.
-pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
-    let package_path = package_path.as_ref();
-    let cargo_toml =
-        read_file(&package_path.join("Cargo.toml")).expect("failed to read Cargo.toml");
-    let cargo_toml = toml::from_str(&cargo_toml).expect("failed to parse Cargo.toml");
-    let crate_name = get_crate_name(&cargo_toml).expect("cannot determine crate name");
-    let src = package_path.join("src");
-    let code = read_file(&src.join("main.rs")).expect("failed to read main.rs");
+pub fn bundle<P: AsRef<Path>>(package_path: P) -> Result<String, Error> {
+    let shell = Shell::new();
+    let cwd = fs::canonicalize(package_path)?;
+    let home = util::homedir(&cwd).ok_or_else(|| {
+        format_err!("failed to determine home directory")
+    })?;
+    let config = Config::new(shell, cwd, home);
+
+    let manifest = util::important_paths::find_root_manifest_for_wd(None, config.cwd())?;
+    let ws = Workspace::new(&manifest, &config)?;
+    let package = ws.current()?;
+    let targets = package.targets();
+    let bins: Vec<_> = targets.iter().filter(|t| t.is_bin()).collect();
+    ensure!(bins.len() != 0, format_err!("no binary target"));
+    ensure!(
+        bins.len() == 1,
+        format_err!("multiple binary targets not supported")
+    );
+    let bin = bins[0];
+    let libs: Vec<_> = targets.iter().filter(|t| t.is_lib()).collect();
+    ensure!(
+        libs.len() <= 1,
+        format_err!("multiple library targets not supported")
+    );
+    let lib = libs.get(0).unwrap_or(&bin);
+    let crate_name = lib.crate_name();
+    let src = lib.src_path().parent().ok_or_else(|| format_err!("parent"))?;
+
+    let code = read_file(bin.src_path()).expect("failed to read main.rs");
     let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
     Expander {
         base_path: &src,
@@ -29,25 +57,6 @@ pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
     }.visit_file_mut(&mut file);
     let code = file.into_tokens().to_string();
     prettify(code)
-}
-
-fn get_crate_name(cargo_toml: &toml::Value) -> Option<String> {
-    cargo_toml
-        .get("lib")
-        .and_then(|lib| lib.get("name"))
-        .map(|name| {
-            name.as_str().expect("lib name is not a string").to_owned()
-        })
-        .or_else(|| {
-            cargo_toml
-                .get("package")
-                .and_then(|package| {
-                    package.get("name").map(|name| {
-                        name.as_str().expect("package name is not a string")
-                    })
-                })
-                .map(|name| name.replace("-", "_"))
-        })
 }
 
 struct Expander<'a> {
@@ -65,7 +74,7 @@ impl<'a> Expander<'a> {
         let mut new_items = vec![];
         for item in items.drain(..) {
             if is_extern_crate(&item, self.crate_name) {
-                eprintln!(
+                info!(
                     "expanding crate {} in {}",
                     self.crate_name,
                     self.base_path.to_str().unwrap()
@@ -106,7 +115,7 @@ impl<'a> Expander<'a> {
             })
             .next()
             .expect("mod not found");
-        eprintln!("expanding mod {} in {}", name, base_path.to_str().unwrap());
+        info!("expanding mod {} in {}", name, base_path.to_str().unwrap());
         let mut file = syn::parse_file(&code).expect("failed to parse file");
         Expander {
             base_path,
@@ -195,11 +204,11 @@ fn read_file(path: &Path) -> Option<String> {
     Some(buf)
 }
 
-fn prettify(code: String) -> String {
+fn prettify(code: String) -> Result<String, Error> {
     let config = Default::default();
     let out: Option<&mut Sink> = None;
     let result = rustfmt::format_input(rustfmt::Input::Text(code), &config, out)
-        .expect("rustfmt failed");
-    let code = &result.1.first().expect("rustfmt returned no code").1;
-    format!("{}", code)
+        .map_err(|(err, _)| err)?;
+    let code = &result.1.first().ok_or_else(|| format_err!("rustfmt"))?.1;
+    Ok(format!("{}", code))
 }

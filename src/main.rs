@@ -9,6 +9,11 @@ fn main() {
         eprintln!("Usage: bundle path/to/project");
         process::exit(1);
     }
-    let code = bundler::bundle(&args[1]);
-    println!("{}", code);
+    match bundler::bundle(&args[1]) {
+        Ok(code) => println!("{}", code),
+        Err(err) => {
+            eprintln!("{}", err);
+            process::exit(1);
+        }
+    }
 }

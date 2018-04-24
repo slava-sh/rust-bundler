@@ -24,10 +24,13 @@ name = "golden"
 harness = false
 
 [dependencies]
+cargo = "0.26"
+failure = "0.1"
+failure_derive = "0.1"
+log = "0.4"
 quote = "0.5"
 rustfmt = "0.10"
 syn = { version = "0.13", features = ["full", "extra-traits", "visit-mut"] }
-toml = "0.4"
 
 [dev-dependencies]
 goldenfile = "0.5"
