@@ -19,6 +19,10 @@ codecov = { repository = "slava-sh/rust-bundler" }
 name = "bundle"
 path = "src/main.rs"
 
+[[test]]
+name = "golden"
+harness = false
+
 [dependencies]
 quote = "0.5"
 rustfmt = "0.10"

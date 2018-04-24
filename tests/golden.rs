@@ -10,8 +10,7 @@ use goldenfile::Mint;
 const INPUT_DIR: &'static str = "tests/testdata/input";
 const OUTPUT_DIR: &'static str = "tests/testdata/output";
 
-#[test]
-fn golden() {
+fn main() {
     let mut mint = Mint::new(OUTPUT_DIR);
     for entry in fs::read_dir(INPUT_DIR).expect("read_dir failed") {
         let input_path = entry.expect("no entry").path();
