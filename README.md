@@ -78,4 +78,5 @@ fn main() {
 
 * [lpenz/rust-sourcebundler](https://github.com/lpenz/rust-sourcebundler)
   is based on regular expressions, whereas this project manipulates the syntax tree
+* [MarcosCosmos/cg-rust-bundler](https://github.com/MarcosCosmos/cg-rust-bundler)
 * [golang.org/x/tools/cmd/bundle](https://godoc.org/golang.org/x/tools/cmd/bundle) for Go
