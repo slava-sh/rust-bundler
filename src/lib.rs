@@ -1,7 +1,7 @@
 //! See [README.md](https://github.com/slava-sh/rust-bundler/blob/master/README.md)
 extern crate cargo_metadata;
 extern crate quote;
-extern crate rustfmt;
+extern crate rustfmt_nightly as rustfmt;
 extern crate syn;
 
 use std::fs::File;
