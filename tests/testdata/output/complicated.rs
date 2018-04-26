@@ -10,14 +10,17 @@ pub mod b {
     }
 }
 pub mod c {
-    pub mod d {
+    pub use d::d;
+    mod d {
         pub fn d() {
             println!("c::d::d()");
         }
     }
 }
+extern crate other_lib;
 fn main() {
     a::a();
     ::b::b();
-    ::c::d::d();
+    ::c::d();
+    other_lib::some_func();
 }
