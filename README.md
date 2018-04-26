@@ -15,14 +15,14 @@ Creates a single-source-file version of a Cargo package.
 
 Input:
 ```rust
-// src/lib.rs:
-mod internal;
-pub use internal::hello_world;
-
 // src/internal.rs:
 pub fn hello_world() {
     println!("Hello, world!");
 }
+
+// src/lib.rs:
+mod internal;
+pub use internal::hello_world;
 
 // src/main.rs:
 extern crate example;
