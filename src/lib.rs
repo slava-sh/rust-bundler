@@ -1,11 +1,8 @@
 //! See [README.md](https://github.com/slava-sh/rust-bundler/blob/master/README.md)
+extern crate cargo_metadata;
 extern crate quote;
 extern crate rustfmt;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
 extern crate syn;
-extern crate toml;
 
 use std::fs::File;
 use std::io::{Read, Sink};
@@ -13,43 +10,39 @@ use std::mem;
 use std::path::Path;
 
 use quote::ToTokens;
-use syn::visit_mut::VisitMut;
 use syn::punctuated::Punctuated;
+use syn::visit_mut::VisitMut;
 
 /// Creates a single-source-file version of a Cargo package.
 pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
-    let package_path = package_path.as_ref();
-    let crate_name = get_crate_name(&package_path.join("Cargo.toml"));
-    let src = package_path.join("src");
-    let code = read_file(&src.join("main.rs")).expect("failed to read main.rs");
-    let mut file = syn::parse_file(&code).expect("failed to parse main.rs");
+    let manifest_path = package_path.as_ref().join("Cargo.toml");
+    let metadata = cargo_metadata::metadata_deps(Some(&manifest_path), false)
+        .expect("failed to obtain cargo metadata");
+    let targets = &metadata.packages[0].targets;
+    let bins: Vec<_> = targets.iter().filter(|t| target_is(t, "bin")).collect();
+    assert!(bins.len() != 0, "no binary target found");
+    assert!(bins.len() == 1, "multiple binary targets not supported");
+    let bin = bins[0];
+    let libs: Vec<_> = targets.iter().filter(|t| target_is(t, "lib")).collect();
+    assert!(libs.len() <= 1, "multiple library targets not supported");
+    let lib = libs.get(0).unwrap_or(&bin);
+    let base_path = Path::new(&lib.src_path)
+        .parent()
+        .expect("lib.src_path has no parent");
+    let crate_name = &lib.name;
+    eprintln!("expanding binary {}", bin.src_path);
+    let code = read_file(&Path::new(&bin.src_path)).expect("failed to read binary target source");
+    let mut file = syn::parse_file(&code).expect("failed to parse binary target source");
     Expander {
-        base_path: &src,
-        crate_name: &crate_name,
+        base_path,
+        crate_name,
     }.visit_file_mut(&mut file);
     let code = file.into_tokens().to_string();
     prettify(code)
 }
 
-fn get_crate_name(cargo_toml: &Path) -> String {
-    let manifest = read_file(&cargo_toml).expect("failed to read Cargo.toml");
-    let manifest: Manifest = toml::from_str(&manifest).expect("failed to parse Cargo.toml");
-    if let Some(lib) = manifest.lib {
-        lib.name
-    } else {
-        manifest.package.name.replace("-", "_")
-    }
-}
-
-#[derive(Deserialize)]
-struct Manifest {
-    package: WithName,
-    lib: Option<WithName>,
-}
-
-#[derive(Deserialize)]
-struct WithName {
-    name: String,
+fn target_is(target: &cargo_metadata::Target, target_kind: &str) -> bool {
+    target.kind.iter().any(|kind| kind == target_kind)
 }
 
 struct Expander<'a> {
@@ -200,8 +193,8 @@ fn read_file(path: &Path) -> Option<String> {
 fn prettify(code: String) -> String {
     let config = Default::default();
     let out: Option<&mut Sink> = None;
-    let result = rustfmt::format_input(rustfmt::Input::Text(code), &config, out)
-        .expect("rustfmt failed");
+    let result =
+        rustfmt::format_input(rustfmt::Input::Text(code), &config, out).expect("rustfmt failed");
     let code = &result.1.first().expect("rustfmt returned no code").1;
     format!("{}", code)
 }
