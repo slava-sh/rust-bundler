@@ -2,6 +2,7 @@
 name = "complicated"
 version = "0.1.0"
 authors = ["Slava Shklyaev <slava@slava.sh>"]
+edition = "2018"
 
 [lib]
 name = "my_lib"
