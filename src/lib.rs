@@ -1,24 +1,20 @@
 //! See [README.md](https://github.com/slava-sh/rust-bundler/blob/master/README.md)
-extern crate cargo_metadata;
-extern crate quote;
-extern crate rustfmt;
-extern crate syn;
-
 use std::fs::File;
-use std::io::{Read, Sink};
+use std::io::Read;
 use std::mem;
 use std::path::Path;
 
-use quote::ToTokens;
+use syn::export::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::visit_mut::VisitMut;
 
 /// Creates a single-source-file version of a Cargo package.
 pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
     let manifest_path = package_path.as_ref().join("Cargo.toml");
-    let metadata = cargo_metadata::metadata_deps(Some(&manifest_path), false)
-        .expect("failed to obtain cargo metadata");
-    let targets = &metadata.packages[0].targets;
+    let mut cmd = cargo_metadata::MetadataCommand::new();
+    cmd.manifest_path(&manifest_path);
+    let metadata = cmd.exec().unwrap();
+    let targets = &metadata.root_package().unwrap().targets;
     let bins: Vec<_> = targets.iter().filter(|t| target_is(t, "bin")).collect();
     assert!(bins.len() != 0, "no binary target found");
     assert!(bins.len() == 1, "multiple binary targets not supported");
@@ -30,14 +26,14 @@ pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
         .parent()
         .expect("lib.src_path has no parent");
     let crate_name = &lib.name;
-    eprintln!("expanding binary {}", bin.src_path);
+    eprintln!("expanding binary {:?}", bin.src_path);
     let code = read_file(&Path::new(&bin.src_path)).expect("failed to read binary target source");
     let mut file = syn::parse_file(&code).expect("failed to parse binary target source");
     Expander {
         base_path,
         crate_name,
     }.visit_file_mut(&mut file);
-    let code = file.into_tokens().to_string();
+    let code = file.into_token_stream().to_string();
     prettify(code)
 }
 
@@ -166,7 +162,7 @@ fn is_extern_crate(item: &syn::Item, crate_name: &str) -> bool {
 
 fn path_starts_with(path: &syn::Path, segment: &str) -> bool {
     if let Some(el) = path.segments.first() {
-        if el.value().ident == segment {
+        if el.ident == segment {
             return true;
         }
     }
@@ -190,11 +186,39 @@ fn read_file(path: &Path) -> Option<String> {
     Some(buf)
 }
 
+#[cfg(feature = "inner_rustfmt")]
 fn prettify(code: String) -> String {
-    let config = Default::default();
-    let out: Option<&mut Sink> = None;
-    let result =
-        rustfmt::format_input(rustfmt::Input::Text(code), &config, out).expect("rustfmt failed");
-    let code = &result.1.first().expect("rustfmt returned no code").1;
-    format!("{}", code)
+    use rustfmt_nightly::{Input, Session, Config, EmitMode, Verbosity};
+    let mut out = Vec::with_capacity(code.len() * 2);
+    {
+        let mut config = Config::default();
+        config.set().emit_mode(EmitMode::Stdout);
+        config.set().verbose(Verbosity::Quiet);
+        let input = Input::Text(code.into());
+        let mut session = Session::new(config, Some(&mut out));
+        session.format(input).expect("rustfmt failed");
+    }
+    String::from_utf8(out).unwrap()
+}
+
+#[cfg(not(feature = "inner_rustfmt"))]
+fn prettify(code: String) -> String {
+    use std::io::Write;
+    use std::process;
+    let mut command = process::Command::new("rustfmt")
+        .stdin(process::Stdio::piped())
+        .stdout(process::Stdio::piped())
+        .stderr(process::Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn rustfmt process");
+    {
+        let mut stdin = command.stdin.take().unwrap();
+        write!(stdin, "{}", code).unwrap();
+    }
+    let out = command.wait_with_output().unwrap();
+    if !out.status.success() {
+       panic!("rustfmt failed");
+    }
+    let stdout = out.stdout;
+    String::from_utf8(stdout).unwrap()
 }

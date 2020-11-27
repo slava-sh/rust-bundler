@@ -4,7 +4,7 @@ pub mod a {
     }
 }
 pub mod b {
-    use a;
+    use crate::a;
     pub fn b() {
         a::a();
     }
@@ -18,6 +18,6 @@ pub mod c {
 }
 fn main() {
     a::a();
-    ::b::b();
-    ::c::d::d();
+    self::b::b();
+    self::c::d::d();
 }
