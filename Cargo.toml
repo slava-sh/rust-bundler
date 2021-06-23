@@ -22,7 +22,7 @@ path = "src/main.rs"
 
 [dependencies]
 cargo_metadata = "0.12.1"
-syn = { version = "1.0.51", features = ["full", "extra-traits", "visit-mut"] }
+syn = { version = "1.0.73", features = ["full", "printing", "visit-mut"] }
 rustfmt-nightly = { version = "1.4.21", optional = true }
 
 [dev-dependencies]

@@ -1,20 +1,24 @@
 //! See [README.md](https://github.com/slava-sh/rust-bundler/blob/master/README.md)
-use std::fs::File;
 use std::io::Read;
 use std::mem;
 use std::path::Path;
 
-use syn::export::ToTokens;
+// use syn::ToTokens;
+use syn::__private::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::visit_mut::VisitMut;
 
-/// Creates a single-source-file version of a Cargo package.
-pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
+fn get_metadata<P: AsRef<Path>>(package_path: P) -> cargo_metadata::Metadata{
     let manifest_path = package_path.as_ref().join("Cargo.toml");
     let mut cmd = cargo_metadata::MetadataCommand::new();
     cmd.manifest_path(&manifest_path);
     let metadata = cmd.exec().unwrap();
-    let targets = &metadata.root_package().unwrap().targets;
+    metadata
+}
+/// Creates a single-source-file version of a Cargo package.
+pub fn bundle<P: AsRef<Path>>(package_path: P) -> String {
+    let metadata = get_metadata(package_path);
+    let targets: &[cargo_metadata::Target] = &metadata.root_package().unwrap().targets;
     let bins: Vec<_> = targets.iter().filter(|t| target_is(t, "bin")).collect();
     assert!(bins.len() != 0, "no binary target found");
     assert!(bins.len() == 1, "multiple binary targets not supported");
@@ -182,7 +186,7 @@ fn is_use_path(item: &syn::Item, first_segment: &str) -> bool {
 
 fn read_file(path: &Path) -> Option<String> {
     let mut buf = String::new();
-    File::open(path).ok()?.read_to_string(&mut buf).ok()?;
+    std::fs::File::open(path).ok()?.read_to_string(&mut buf).ok()?;
     Some(buf)
 }
 
