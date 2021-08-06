@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        rust: [stable]
+        rust: [stable, 1.49.0, "1.50", 1.51, 1.52]
         include:
           - os: ubuntu-latest
             sccache-path: /home/runner/.cache/sccache
@@ -70,6 +70,12 @@ jobs:
         run: sccache --start-server
 
 # Real tests starts here
+      - name: Check version
+        run: rustup --version && rustc --version && cargo --version
+      - name: Install rustfmt
+        run: |
+          rustup component add rustfmt
+          which rustfmt && rustfmt --version
       - name: Build
         run: cargo build --verbose
       - name: Run tests

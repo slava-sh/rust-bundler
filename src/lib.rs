@@ -221,7 +221,14 @@ fn prettify(code: String) -> String {
     }
     let out = command.wait_with_output().unwrap();
     if !out.status.success() {
-       panic!("rustfmt failed");
+        let error_code = match out.status.code() {
+            Some(x) => x.to_string(),
+            None => String::from("Error_Code_None")
+        };
+        let stderr = out.stderr;
+        let stderr = String::from_utf8(stderr)
+            .unwrap_or( String::from("Invalid stderr String") );
+       panic!("rustfmt failed, code={}\nstderr: {}", error_code, stderr);
     }
     let stdout = out.stdout;
     String::from_utf8(stdout).unwrap()
